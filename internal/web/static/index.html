@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR Manager</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PR Manager</h1>
+            <div class="tabs">
+                <button class="tab-button active" data-tab="dashboard">Главная</button>
+                <button class="tab-button" data-tab="teams">Команды</button>
+                <button class="tab-button" data-tab="users">Пользователи</button>
+                <button class="tab-button" data-tab="pull-requests">Pull Requests</button>
+            </div>
+        </header>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2>Панель управления</h2>
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <h3>Здоровье системы</h3>
+                    <button onclick="checkHealth()" class="btn btn-primary">Проверить</button>
+                    <div id="health-status" class="status"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Статистика назначений</h3>
+                    <button onclick="loadAssignmentStats()" class="btn btn-secondary">Обновить</button>
+                    <pre id="assignment-stats" class="status"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teams Tab -->
+        <div id="teams" class="tab-content">
+            <h2>Управление командами</h2>
+
+            <div class="section">
+                <h3>Добавить команду</h3>
+                <form id="add-team-form" class="form">
+                    <div class="form-group">
+                        <label for="team-name">Название команды:</label>
+                        <input type="text" id="team-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="team-members">Участники (JSON):</label>
+                        <textarea id="team-members" rows="4" placeholder=''></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Добавить команду</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h3>Получить информацию о команде</h3>
+                <form id="get-team-form" class="form">
+                    <div class="form-group">
+                        <label for="get-team-name">Название команды:</label>
+                        <input type="text" id="get-team-name" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Получить</button>
+                </form>
+                <div id="team-info" class="response-area"></div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="users" class="tab-content">
+            <h2>Управление пользователями</h2>
+
+            <div class="section">
+                <h3>Установить активность пользователя</h3>
+                <form id="set-user-active-form" class="form">
+                    <div class="form-group">
+                        <label for="user-id">ID пользователя:</label>
+                        <input type="text" id="user-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-is-active">Активен:</label>
+                        <select id="user-is-active">
+                            <option value="true">Да</option>
+                            <option value="false">Нет</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Обновить статус</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h3>Получить ревью пользователя</h3>
+                <form id="get-user-reviews-form" class="form">
+                    <div class="form-group">
+                        <label for="review-user-id">ID пользователя:</label>
+                        <input type="text" id="review-user-id" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Получить ревью</button>
+                </form>
+                <div id="user-reviews" class="response-area"></div>
+            </div>
+        </div>
+
+        <!-- Pull Requests Tab -->
+        <div id="pull-requests" class="tab-content">
+            <h2>Управление Pull Requests</h2>
+
+            <div class="section">
+                <h3>Создать Pull Request</h3>
+                <form id="create-pr-form" class="form">
+                    <div class="form-group">
+                        <label for="pr-id">ID PR:</label>
+                        <input type="text" id="pr-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pr-name">Название PR:</label>
+                        <input type="text" id="pr-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pr-author-id">ID автора:</label>
+                        <input type="text" id="pr-author-id" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h3>Слить Pull Request</h3>
+                <form id="merge-pr-form" class="form">
+                    <div class="form-group">
+                        <label for="merge-pr-id">ID PR:</label>
+                        <input type="text" id="merge-pr-id" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning">Слить</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h3>Переназначить Pull Request</h3>
+                <form id="reassign-pr-form" class="form">
+                    <div class="form-group">
+                        <label for="reassign-pr-id">ID PR:</label>
+                        <input type="text" id="reassign-pr-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reassign-old-user-id">Старый ревьювер (Old User ID):</label>
+                        <input type="text" id="reassign-old-user-id" required>
+                        <small>Укажите ID ревьювера, которого нужно заменить</small>
+                    </div>
+                    <button type="submit" class="btn btn-info">Переназначить</button>
+                </form>
+                <div id="reassign-result" class="response-area"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

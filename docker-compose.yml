@@ -1,0 +1,63 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pr-manager-postgres
+    environment:
+      POSTGRES_DB: prManagerDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PR_MANAGER_DB_PASSWORD:?PR_MANAGER_DB_PASSWORD is required}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prManagerDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pr-manager-network
+
+  # PR Manager Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pr-manager-app
+    ports:
+      - "8080:8080"
+    environment:
+      HTTP_HOST: 0.0.0.0
+      CONFIG_PATH: /app/conf/config.json
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${PR_MANAGER_DB_PASSWORD:?PR_MANAGER_DB_PASSWORD is required}
+      DB_NAME: prManagerDb
+      STATIC_DIR: /app/static
+    volumes:
+      - ./conf:/app/conf:ro
+      - ./logs:/app/logs
+      - ./internal/web/static:/app/static:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - pr-manager-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  pr-manager-network:
+    driver: bridge

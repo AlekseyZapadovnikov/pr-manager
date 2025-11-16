@@ -1,0 +1,13 @@
+{
+  "httpServer": {
+    "host": "localhost",
+    "port": "8080"
+  },
+  "dataBase": {
+    "host": "localhost",
+    "port": "5432",
+    "user": "postgres",
+    "password": "CHANGEME",
+    "name": "prManagerDb"
+  }
+}

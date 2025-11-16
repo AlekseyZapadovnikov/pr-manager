@@ -1,0 +1,14 @@
+{
+  "httpServer": {
+    "host": "0.0.0.0",
+    "port": "8080",
+    "baseURL": ""
+  },
+  "dataBase": {
+    "host": "localhost",
+    "port": "5433",
+    "user": "user",
+    "password": "secret",
+    "name": "prManagerDb"
+  }
+}

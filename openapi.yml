@@ -1,0 +1,594 @@
+openapi: 3.0.3
+info:
+  title: PR Reviewer Assignment Service (Test Task, Fall 2025)
+  version: "1.0.0"
+
+tags:
+  - name: Teams
+  - name: Users
+  - name: PullRequests
+  - name: Health
+
+components:
+  parameters:
+    TeamNameQuery:
+      name: team_name
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Уникальное имя команды
+    UserIdQuery:
+      name: user_id
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Идентификатор пользователя
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - TEAM_EXISTS
+                - PR_EXISTS
+                - PR_MERGED
+                - NOT_ASSIGNED
+                - NO_CANDIDATE
+                - NOT_FOUND
+            message:
+              type: string
+      example:
+        error:
+          code: NOT_FOUND
+          message: resource not found
+    TeamMember:
+      type: object
+      required: [ user_id, username, is_active ]
+      properties:
+        user_id:
+          type: string
+        username:
+          type: string
+        is_active:
+          type: boolean
+    Team:
+      type: object
+      required: [ team_name, members]
+      properties:
+        team_name:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamMember'
+    User:
+      type: object
+      required: [ user_id, username, team_name, is_active ]
+      properties:
+        user_id:
+          type: string
+        username:
+          type: string
+        team_name:
+          type: string
+        is_active:
+          type: boolean
+    PullRequest:
+      type: object
+      required: [ pull_request_id, pull_request_name, author_id, status, assigned_reviewers]
+      properties:
+        pull_request_id:
+          type: string
+        pull_request_name:
+          type: string
+        author_id:
+          type: string
+        status:
+          type: string
+          enum: [OPEN, MERGED]
+        assigned_reviewers:
+          type: array
+          items:
+            type: string
+          description: user_id назначенных ревьюверов (0..2)
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        mergedAt:
+          type: string
+          format: date-time
+          nullable: true
+    PullRequestShort:
+      type: object
+      required: [ pull_request_id, pull_request_name, author_id, status]
+      properties:
+        pull_request_id:
+          type: string
+        pull_request_name:
+          type: string
+        author_id:
+          type: string
+        status:
+          type: string
+          enum: [OPEN, MERGED]
+    AssignmentStats:
+      type: object
+      required: [ by_user, by_pull_request ]
+      properties:
+        by_user:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAssignmentStat'
+        by_pull_request:
+          type: array
+          items:
+            $ref: '#/components/schemas/PullRequestAssignmentStat'
+    UserAssignmentStat:
+      type: object
+      required: [ user_id, assignments ]
+      properties:
+        user_id:
+          type: string
+        username:
+          type: string
+        assignments:
+          type: integer
+          format: int32
+          minimum: 0
+    PullRequestAssignmentStat:
+      type: object
+      required: [ pull_request_id, reviewer_count ]
+      properties:
+        pull_request_id:
+          type: string
+        pull_request_name:
+          type: string
+        reviewer_count:
+          type: integer
+          format: int32
+          minimum: 0
+    TeamBulkDeactivateRequest:
+      type: object
+      required: [ team_name, user_ids ]
+      properties:
+        team_name:
+          type: string
+        user_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    TeamBulkDeactivateResult:
+      type: object
+      required: [ team_name, deactivated, reassignments ]
+      properties:
+        team_name:
+          type: string
+        deactivated:
+          type: array
+          items:
+            type: string
+        reassignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamPRReassignment'
+    TeamPRReassignment:
+      type: object
+      required: [ pull_request_id, replacements ]
+      properties:
+        pull_request_id:
+          type: string
+        replacements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewerReplacement'
+    ReviewerReplacement:
+      type: object
+      required: [ old_user_id, new_user_id ]
+      properties:
+        old_user_id:
+          type: string
+        new_user_id:
+          type: string
+
+paths:
+  /team/add:
+    post:
+      tags: [Teams]
+      summary: Создать команду с участниками (создаёт/обновляет пользователей)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Team'
+            example:
+              team_name: payments
+              members:
+                - user_id: u1
+                  username: Alice
+                  is_active: true
+                - user_id: u2
+                  username: Bob
+                  is_active: true
+      responses:
+        '201':
+          description: Команда создана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team:
+                    $ref: '#/components/schemas/Team'
+              example:
+                team:
+                  team_name: backend
+                  members:
+                    - user_id: u1
+                      username: Alice
+                      is_active: true
+                    - user_id: u2
+                      username: Bob
+                      is_active: true
+        '400':
+          description: Команда уже существует
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error:
+                  code: TEAM_EXISTS
+                  message: team_name already exists
+
+  /team/get:
+    get:
+      tags: [Teams]
+      summary: Получить команду с участниками
+      security:
+        - AdminToken: []
+        - UserToken: []
+      parameters:
+        - $ref: '#/components/parameters/TeamNameQuery'
+      responses:
+        '200':
+          description: Объект команды
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+              example:
+                team_name: backend
+                members:
+                  - user_id: u1
+                    username: Alice
+                    is_active: true
+                  - user_id: u2
+                    username: Bob
+                    is_active: true
+        '404':
+          description: Команда не найдена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /team/deactivateUsers:
+    post:
+      tags: [Teams]
+      summary: Массовая деактивация ревьюверов команды с безопасной заменой по открытым PR
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamBulkDeactivateRequest'
+            example:
+              team_name: backend
+              user_ids: [u2, u3]
+      responses:
+        '200':
+          description: Пользователи деактивированы, PR переназначены
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    $ref: '#/components/schemas/TeamBulkDeactivateResult'
+              example:
+                result:
+                  team_name: backend
+                  deactivated: [u2, u3]
+                  reassignments:
+                    - pull_request_id: pr-1001
+                      replacements:
+                        - old_user_id: u2
+                          new_user_id: u5
+        '404':
+          description: Команда или пользователь не найдены
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Недостаточно активных ревьюверов для подмены
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /users/setIsActive:
+    post:
+      tags: [Users]
+      summary: Установить флаг активности пользователя
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ user_id, is_active ]
+              properties:
+                user_id:
+                  type: string
+                is_active:
+                  type: boolean
+            example:
+              user_id: u2
+              is_active: false
+      responses:
+        '200':
+          description: Обновлённый пользователь
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+              example:
+                user:
+                  user_id: u2
+                  username: Bob
+                  team_name: backend
+                  is_active: false
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Нет/неверный админский токен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /pullRequest/create:
+    post:
+      tags: [PullRequests]
+      summary: Создать PR и автоматически назначить до 2 ревьюверов из команды автора
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ pull_request_id, pull_request_name, author_id ]
+              properties:
+                pull_request_id: { type: string }
+                pull_request_name: { type: string }
+                author_id: { type: string }
+            example:
+              pull_request_id: pr-1001
+              pull_request_name: Add search
+              author_id: u1
+      responses:
+        '201':
+          description: PR создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pr:
+                    $ref: '#/components/schemas/PullRequest'
+              example:
+                pr:
+                  pull_request_id: pr-1001
+                  pull_request_name: Add search
+                  author_id: u1
+                  status: OPEN
+                  assigned_reviewers: [u2, u3]
+        '404':
+          description: Автор/команда не найдены
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: PR уже существует
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: PR_EXISTS, message: PR id already exists }
+
+  /pullRequest/merge:
+    post:
+      tags: [PullRequests]
+      summary: Пометить PR как MERGED (идемпотентная операция)
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ pull_request_id ]
+              properties:
+                pull_request_id: { type: string }
+            example:
+              pull_request_id: pr-1001
+      responses:
+        '200':
+          description: PR в состоянии MERGED
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pr:
+                    $ref: '#/components/schemas/PullRequest'
+              example:
+                pr:
+                  pull_request_id: pr-1001
+                  pull_request_name: Add search
+                  author_id: u1
+                  status: MERGED
+                  assigned_reviewers: [u2, u3]
+                  mergedAt: 2025-10-24T12:34:56Z
+        '404':
+          description: PR не найден
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /pullRequest/reassign:
+    post:
+      tags: [PullRequests]
+      summary: Переназначить конкретного ревьювера на другого из его команды
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ pull_request_id, old_user_id ]
+              properties:
+                pull_request_id: { type: string }
+                old_user_id: { type: string }
+            example:
+              pull_request_id: pr-1001
+              old_reviewer_id: u2
+      responses:
+        '200':
+          description: Переназначение выполнено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pr, replaced_by]
+                properties:
+                  pr:
+                    $ref: '#/components/schemas/PullRequest'
+                  replaced_by:
+                    type: string
+                    description: user_id нового ревьювера
+              example:
+                pr:
+                  pull_request_id: pr-1001
+                  pull_request_name: Add search
+                  author_id: u1
+                  status: OPEN
+                  assigned_reviewers: [u3, u5]
+                replaced_by: u5
+        '404':
+          description: PR или пользователь не найден
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Нарушение доменных правил переназначения
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                merged:
+                  summary: Нельзя менять после MERGED
+                  value:
+                    error: { code: PR_MERGED, message: cannot reassign on merged PR }
+                notAssigned:
+                  summary: Пользователь не был назначен ревьювером
+                  value:
+                    error: { code: NOT_ASSIGNED, message: reviewer is not assigned to this PR }
+                noCandidate:
+                  summary: Нет доступных кандидатов
+                  value:
+                    error: { code: NO_CANDIDATE, message: no active replacement candidate in team }
+
+  /users/getReview:
+    get:
+      tags: [Users]
+      summary: Получить PR'ы, где пользователь назначен ревьювером
+      security:
+        - AdminToken: []
+        - UserToken: []
+      parameters:
+        - $ref: '#/components/parameters/UserIdQuery'
+      responses:
+        '200':
+          description: Список PR'ов пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ user_id, pull_requests ]
+                properties:
+                  user_id:
+                    type: string
+                  pull_requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PullRequestShort'
+              example:
+                user_id: u2
+                pull_requests:
+                  - pull_request_id: pr-1001
+                    pull_request_name: Add search
+                    author_id: u1
+                    status: OPEN
+  /stats/assignments:
+    get:
+      tags: [Stats]
+      summary: возвращает агрегированную статистику по ревьюверам и PR
+      security:
+        - AdminToken: []
+        - UserToken: []
+      responses:
+        '200':
+          description: Актуальные данные статистики
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentStats'
+              example:
+                by_user:
+                  - user_id: reviewer-1
+                    username: Alice
+                    assignments: 3
+                  - user_id: reviewer-2
+                    username: Bob
+                    assignments: 1
+                by_pull_request:
+                  - pull_request_id: pr-101
+                    pull_request_name: Add login
+                    reviewer_count: 2
+                  - pull_request_id: pr-209
+                    pull_request_name: Refactor billing
+                    reviewer_count: 1
+

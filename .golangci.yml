@@ -1,0 +1,45 @@
+run:
+  go: "1.24"
+  timeout: 5m
+  tests: true
+
+output:
+  sort-results: true
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  gocyclo:
+    min-complexity: 15
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  govet:
+    check-shadowing: true
+  revive:
+    ignore-generated-header: true
+  staticcheck:
+    checks:
+      - all
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-use-default: false
+  new: true

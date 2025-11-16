@@ -1,0 +1,32 @@
+{
+  "generated_at": "2025-11-16T15:40:58.2044631+03:00",
+  "base_url": "http://localhost:8080",
+  "duration_sec": 30.031349,
+  "target_rps": 5,
+  "actual_rps": 4.99478062074401,
+  "dataset": {
+    "prefix": "load-1763296827",
+    "team_count": 10,
+    "users_per_team": 20,
+    "targets_per_team": 8,
+    "prs_per_target": 2,
+    "batch_size": 4
+  },
+  "totals": {
+    "requested": 150,
+    "succeeded": 150,
+    "failed": 0
+  },
+  "bulk_deactivate_latency_ms": {
+    "samples": 150,
+    "average_ms": 7.23354,
+    "p95_ms": 13.421,
+    "max_ms": 95.612
+  },
+  "reassignment_latency_ms": {
+    "samples": 150,
+    "average_ms": 7.23354,
+    "p95_ms": 13.421,
+    "max_ms": 95.612
+  }
+}
